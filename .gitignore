@@ -1,0 +1,7 @@
+.work-context/local/
+node_modules/
+dist/
+projects.json
+reports/
+*.log
+.tmp/

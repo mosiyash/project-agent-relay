@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "defaults": {
+    "timeoutMs": 900000,
+    "idleTimeoutMs": 120000,
+    "maxReportBytes": 262144
+  },
+  "projects": [
+    {
+      "name": "crm",
+      "aliases": ["customer-relations"],
+      "path": "/home/example/projects/crm",
+      "runner": {
+        "type": "opencode",
+        "executable": "opencode"
+      },
+      "instructionPaths": ["AGENTS.md", "docs/architecture.md"]
+    }
+  ]
+}
