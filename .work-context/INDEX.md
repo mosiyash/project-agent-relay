@@ -2,4 +2,4 @@
 
 | Workspace | Title | Status | Updated |
 |---|---|---|---|
-| 000001 | Локальный внешний оркестратор для AI-агентов | in_progress | 2026-11-08T12:54:19.665Z |
+| 000001 | Local External Orchestrator for AI Agents | completed | 2026-11-17T05:53:14.180Z |
