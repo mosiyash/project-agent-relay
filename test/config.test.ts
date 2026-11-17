@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { resolveAllowedProject, validateRegistry } from "../src/config.js";
+import {
+  registerCurrentProject,
+  resolveAllowedProject,
+  validateRegistry,
+} from "../src/config.js";
 import { RelayError } from "../src/errors.js";
 
 const registry = (projectPath = "/srv/example") => ({
@@ -69,5 +73,19 @@ test("resolves only registered accessible directories", async () => {
   await assert.rejects(
     resolveAllowedProject(config, "unknown"),
     (error: unknown) => error instanceof RelayError && error.code === "PROJECT",
+  );
+});
+
+test("registers only the canonical current project path", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "relay-register-"));
+  const configPath = path.join(directory, "config", "projects.json");
+  const project = await registerCurrentProject("mailer", configPath, directory);
+  assert.equal(project.path, directory);
+  assert.deepEqual(project.instructionPaths, []);
+  const saved = JSON.parse(await readFile(configPath, "utf8"));
+  assert.equal(saved.projects[0].name, "mailer");
+  await assert.rejects(
+    registerCurrentProject("mailer", configPath, directory),
+    /already registered/,
   );
 });

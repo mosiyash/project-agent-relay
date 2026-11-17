@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
   defaultConfigPath,
+  isProjectName,
   loadRegistry,
+  registerCurrentProject,
   resolveAllowedProject,
 } from "./config.js";
 import { RelayError } from "./errors.js";
@@ -51,15 +53,54 @@ interface ResumeOptions {
   profile?: QueryProfile;
 }
 
+interface RegisterOptions {
+  project: string;
+  configPath: string;
+}
+
 function usage(): string {
   return `Usage:
   project-agent-relay ask --project <name> --question <text> [--profile answer|implementation|transfer] [--config <file>] [--follow|--follow-details]
   project-agent-relay resume --run <id> --question <text> [--profile answer|implementation|transfer] [--config <file>] [--follow|--follow-details]
   project-agent-relay status --run <id>
   project-agent-relay latest --project <name> [--config <file>]
+  project-agent-relay register --project <name> [--config <file>]
   project-agent-relay install-opencode-skill [--force]
 
 The default registry is ${defaultConfigPath()}`;
+}
+
+export function parseRegisterArguments(
+  args: string[],
+  environment: NodeJS.ProcessEnv = process.env,
+): RegisterOptions {
+  const values = new Map<string, string>();
+  for (let index = 1; index < args.length; index += 2) {
+    const key = args[index];
+    const value = args[index + 1];
+    if (!key || !["--project", "--config"].includes(key) || !value) {
+      throw new RelayError("USAGE", usage(), 2);
+    }
+    if (values.has(key))
+      throw new RelayError("USAGE", `duplicate option: ${key}`, 2);
+    values.set(key, value);
+  }
+  const project = values.get("--project");
+  if (!project || !isProjectName(project)) {
+    throw new RelayError(
+      "USAGE",
+      "project name must contain only lowercase letters, digits, _ and -",
+      2,
+    );
+  }
+  return {
+    project,
+    configPath: path.resolve(
+      values.get("--config") ||
+        environment.PROJECT_AGENT_RELAY_CONFIG ||
+        defaultConfigPath(environment),
+    ),
+  };
 }
 
 function parseInstallArguments(args: string[]): InstallOptions {
@@ -239,6 +280,17 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       process.stdout.write(`Installed OpenCode skill at ${result.skillPath}\n`);
       process.stdout.write(
         `Allowed relay lifecycle commands in ${result.configPath}\n`,
+      );
+      return 0;
+    }
+    if (args[0] === "register") {
+      const registration = parseRegisterArguments(args);
+      const project = await registerCurrentProject(
+        registration.project,
+        registration.configPath,
+      );
+      process.stdout.write(
+        `Registered project "${project.name}" at ${project.path}\n`,
       );
       return 0;
     }

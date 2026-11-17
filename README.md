@@ -28,7 +28,7 @@ npm link
 project-agent-relay install-opencode-skill
 ```
 
-Команда создаёт `~/.config/opencode/skills/project-agent-relay/SKILL.md` и добавляет в `~/.config/opencode/opencode.json(c)` узкие `bash`-правила только для lifecycle-команд `project-agent-relay ask|resume|status|latest`. Существующий skill не заменяется без `--force`. Если `opencode.jsonc` содержит комментарии, installer намеренно откажется его перезаписывать; добавьте правила вручную или удалите комментарии перед повторным запуском.
+Команда создаёт `~/.config/opencode/skills/project-agent-relay/SKILL.md` и добавляет в `~/.config/opencode/opencode.json(c)` узкие `bash`-правила только для lifecycle-команд `project-agent-relay ask|resume|status|latest` и `register --project`. Существующий skill не заменяется без `--force`. Если `opencode.jsonc` содержит комментарии, installer намеренно откажется его перезаписывать; добавьте правила вручную или удалите комментарии перед повторным запуском.
 
 После установки перезапустите OpenCode: global skills и конфигурация загружаются только при старте. В другом проекте можно сказать агенту: «Узнай в CRM, как реализована доставка транзакционных писем». Skill направит его к зарегистрированному проекту через relay, а не к прямому чтению чужого каталога.
 
@@ -81,6 +81,14 @@ project-agent-relay install-opencode-skill
 `fake` возвращает детерминированный пустой отчёт и не читает проект. Он предназначен для локальной проверки CLI и тестов, а не для исследования кода.
 
 ## Использование
+
+Зарегистрировать текущий проект под логическим именем можно только из его корня:
+
+```bash
+project-agent-relay register --project mailer
+```
+
+Команда не принимает путь к проекту, runner или instruction paths. Она сохраняет canonical path текущего каталога с безопасными настройками по умолчанию.
 
 ```bash
 project-agent-relay ask \
@@ -144,7 +152,7 @@ Global skill выбирает `answer` для вопросов «какой/чт
 - Перед запуском проверяются существование, тип и доступность каталога; runner получает его canonical path.
 - Процесс запускается через `spawn(executable, args)` с `shell: false`; prompt передаётся напрямую через stdin и не интерполируется в shell-команду или positional-аргумент.
 - OpenCode запускается с `--pure`, поэтому плагины целевого проекта не загружаются.
-- Global OpenCode skill получает только разрешения на `project-agent-relay ask|resume|status|latest`; он не получает разрешение на произвольные shell-команды или прямой доступ к другим проектам.
+- Global OpenCode skill получает только разрешения на `project-agent-relay ask|resume|status|latest` и регистрацию текущего каталога через `register --project`; он не получает разрешение на произвольные shell-команды или прямой доступ к другим проектам.
 - Inline agent policy сначала запрещает все инструменты, затем разрешает только `read`, `glob` и `grep`; `edit`, shell, subagents, web и внешний доступ остаются запрещёнными.
 - Дополнительные deny-правила блокируют `.env`, ключи, токены, секреты и дампы. Единый prompt повторяет эти ограничения и запрещает изменения.
 - Дочерний процесс получает очищенное окружение без API-токенов и других произвольных переменных. Поэтому provider должен быть авторизован через credential store OpenCode, а не только через переменную окружения.

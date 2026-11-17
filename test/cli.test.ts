@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import {
   isMainModule,
   parseArguments,
+  parseRegisterArguments,
   parseResumeArguments,
 } from "../src/cli.js";
 
@@ -19,6 +20,22 @@ test("recognizes a globally linked CLI symlink as the main module", async () => 
 
   assert.equal(isMainModule(pathToFileURL(target).href, link), true);
   assert.equal(isMainModule(pathToFileURL(target).href, undefined), false);
+});
+
+test("parses registration without accepting a project path", () => {
+  const options = parseRegisterArguments(["register", "--project", "mailer"]);
+  assert.equal(options.project, "mailer");
+  assert.throws(
+    () =>
+      parseRegisterArguments([
+        "register",
+        "--project",
+        "mailer",
+        "--path",
+        "/tmp/mailer",
+      ]),
+    /Usage:/,
+  );
 });
 
 test("parses --follow independently of valued ask options", () => {

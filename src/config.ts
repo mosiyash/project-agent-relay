@@ -1,5 +1,13 @@
 import { constants } from "node:fs";
-import { access, readFile, realpath, stat } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { configError, projectError, RelayError } from "./errors.js";
@@ -9,6 +17,18 @@ const PROJECT_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const RUNNERS = new Set<RunnerType>(["opencode", "fake"]);
 const SENSITIVE_INSTRUCTION =
   /(^|[/\\])(\.env(?:\.|$)|.*(?:secret|token|credential|private[-_]?key).*)/i;
+const DEFAULT_REGISTRY = {
+  version: 1 as const,
+  defaults: {
+    timeoutMs: 120_000,
+    idleTimeoutMs: 120_000,
+    maxReportBytes: 262_144,
+  },
+};
+
+export function isProjectName(value: string): boolean {
+  return PROJECT_NAME.test(value);
+}
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -192,6 +212,83 @@ export async function loadRegistry(
       throw configError(`configuration is not valid JSON: ${error.message}`);
     throw error;
   }
+}
+
+export async function registerCurrentProject(
+  name: string,
+  configPath: string,
+  currentDirectory = process.cwd(),
+): Promise<ProjectConfig> {
+  if (!isProjectName(name)) {
+    throw configError(`project name must match ${PROJECT_NAME}`);
+  }
+
+  let currentPath: string;
+  try {
+    const directory = await stat(currentDirectory);
+    if (!directory.isDirectory())
+      throw projectError("current working directory is not a directory");
+    await access(currentDirectory, constants.R_OK | constants.X_OK);
+    currentPath = await realpath(currentDirectory);
+  } catch (error) {
+    if (error instanceof RelayError) throw error;
+    throw projectError("current working directory is not accessible", {
+      cause: error,
+    });
+  }
+
+  let registry: RegistryConfig;
+  try {
+    registry = await loadRegistry(configPath);
+  } catch (error) {
+    if (
+      error instanceof RelayError &&
+      error.code === "CONFIG" &&
+      (error.cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
+    ) {
+      registry = { ...DEFAULT_REGISTRY, projects: [] };
+    } else {
+      throw error;
+    }
+  }
+
+  if (
+    registry.projects.some(
+      (project) => project.name === name || project.aliases.includes(name),
+    )
+  ) {
+    throw configError(`project name or alias "${name}" is already registered`);
+  }
+
+  const project: ProjectConfig = {
+    name,
+    aliases: [],
+    path: currentPath,
+    runner: { type: "opencode" },
+    instructionPaths: [],
+  };
+  const updatedRegistry = {
+    ...registry,
+    projects: [...registry.projects, project],
+  };
+  await writeRegistry(configPath, updatedRegistry);
+  return project;
+}
+
+export async function writeRegistry(
+  configPath: string,
+  registry: RegistryConfig,
+): Promise<void> {
+  const validated = validateRegistry(registry);
+  const directory = path.dirname(configPath);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const temporary = `${configPath}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(validated, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+    flag: "wx",
+  });
+  await rename(temporary, configPath);
 }
 
 export async function resolveAllowedProject(

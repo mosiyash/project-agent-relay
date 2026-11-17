@@ -40,6 +40,11 @@ test("installs the global skill and a narrow relay bash permission", async () =>
   assert.equal(config.permission.bash["project-agent-relay status *"], "allow");
   assert.equal(config.permission.bash["project-agent-relay latest *"], "allow");
   assert.equal(
+    config.permission.bash["project-agent-relay register --project *"],
+    "allow",
+  );
+  assert.match(skill, /registers only the current working directory/);
+  assert.equal(
     result.skillPath,
     path.join(
       configHome,

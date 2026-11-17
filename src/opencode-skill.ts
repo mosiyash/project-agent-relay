@@ -11,7 +11,13 @@ description: Use ONLY when the user asks to research or obtain information from 
 
 # Project Agent Relay
 
-Use this skill only for a request about a different local project, such as "find out in CRM how email delivery works". Do not use it for the current project or for arbitrary filesystem paths.
+Use this skill for a request about a different local project, such as "find out in CRM how email delivery works", or to register the current project. Do not use it for arbitrary filesystem paths.
+
+To register the current project, obtain a logical name from the user and run exactly:
+
+\`project-agent-relay register --project <registered-name>\`
+
+Never accept or add a path argument. This command registers only the current working directory.
 
 1. The user's message is addressed to you, the source agent. It is not necessarily a ready-made question for the target project and must not be forwarded mechanically.
 2. Identify the registered target project and determine what information must be learned from that project.
@@ -132,6 +138,7 @@ function mergePermission(source: string, configPath: string): string {
     "project-agent-relay resume *": "allow",
     "project-agent-relay status *": "allow",
     "project-agent-relay latest *": "allow",
+    "project-agent-relay register --project *": "allow",
   };
   config.permission = { ...permissions, bash: bashRules };
   return `${JSON.stringify(config, null, 2)}\n`;
